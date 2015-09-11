@@ -1,0 +1,117 @@
+var http = require("http");
+var fs = require("fs");
+var path = require("path");
+var url = require("url");
+var mime = require('mime');   //文件的类型
+
+function removeP(path){    //删除方法
+
+    var paths=path.split('/');
+    for(i=0; i<paths.length; i++){
+        var p=paths.slice(0,paths.length-i).join('/');
+        var exist=fs.existsSync(p);
+        if(!exist) {
+            continue;
+        }else if(fs.statSync(p).isFile()){
+            fs.unlinkSync(p);
+        }else{
+            fs.rmdirSync(p); //删除空文件夹
+        }
+    }
+}
+var server = http.createServer(function (req, res) {
+
+    var url=req.url;
+    var urls = url.split('?');
+    var pathname=urls[0];
+    var query=urls[1];
+    var queryObj={};
+    if(query){
+        var field =query.split('&');
+        field.forEach(function(field){
+            var vals = field.split('=');
+            queryObj[vals[0]]=vals[1];
+        })
+    }
+
+
+    if (pathname == '/favicon.ico') {//icon请求忽略
+        res.end('~');
+        return;
+    }
+    if(pathname == '/del'){
+        //var urls=url.split('?path=/')>1?url.split('?path=/')[1]:url.split('?path=')[1];
+        for(var key in queryObj){
+            removeP(urls);
+        }
+    }
+
+    //系统份文件分隔符
+    //var sep=path.sep;
+
+    //访问请求的文件地址标准化
+    //var reqPath = path.normalize(req.url);
+
+    // var reqPath =req.url;
+
+
+    //获取当文件的路径
+    //var pathname = path.join(filePath, reqPath);
+    var filename='.'+pathname;
+    //判断文件是否存在
+    fs.exists(filename, function (exists) {
+        if (exists) {//文件存在
+
+            //判断是否是目录
+            if (fs.statSync(filename).isDirectory()) {
+                var addStr = '<link rel="stylesheet" href="/public/css/index.css"/>';
+                addStr += '<h1>FileManager system directory</h1>';
+                addStr += '<ul>';
+
+                //遍历文件
+                fs.readdir(filename, function (err, files) {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        res.writeHead(200, {"Content-Type": "text/html;charset=utf-8"});
+                        files.forEach(function (file) {//便利目录内容
+                            if(file=='.git'||file=='node_modules'||file='.idea'){
+                                continue;
+                            }else{
+                                var filePath = fileName + '/' + file;
+                            }
+                            if (pathname != filePath) {
+                                pathname = pathname.replace(filePath, "");
+                            }
+                            filePath1 = path.join(pathname, file).replace(/\\/g, "/");
+
+                            if (path.extname(file)) {
+                                addStr += '<li class="gray"><a href="' + filePath1 + '" style="">' + file + ' </a><a class="del" href=/del?path=' + file + '>删除</a></li>';
+                            } else {
+                                addStr += '<li ><a href="' + filePath1 + '" style="">' + file + '</a><a class="del"  href=del?path=' + filePath1 + '>删除</a></li>';
+                            }
+                        });
+                    }
+                    res.end(addStr + "</ul><p>提示：以上目录列表，蓝色是文件夹，可点击继续进入下一节。</p>");
+                });
+            } else if (fs.statSync(pathname).isFile()) {
+
+                //当访问的是文件时，判断文件类型，并读文件
+                res.writeHead(200, {'Content-Type': mime.lookup(path.basename(pathname)) + ';charset=utf-8'});
+                fs.readFile(pathname, {flag: "r"}, function (err, data) {
+                    if (err) {
+                        res.end(err);
+                    } else {
+                        res.end(data);
+                    }
+                });
+            }
+        } else {
+            res.writeHead(404, {"Content-Type": "text/html"});
+            res.write('<span style="color:red">"' + pathname + '"</span> was not found on this server.');
+            res.end();
+        }
+    });
+
+});
+server.listen(8080);

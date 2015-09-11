@@ -23,8 +23,9 @@ h1 {
 ul {
     width: 90%;
     margin: 50px 5%;
-}
 
+}
+li.folder{color:#105eb5!important; text-underline: underline;}
 ul li {
     list-style: decimal inside;
     border-bottom: 1px dashed #ccc;
